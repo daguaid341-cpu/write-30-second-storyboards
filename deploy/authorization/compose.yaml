@@ -1,0 +1,36 @@
+services:
+  authorization:
+    build:
+      context: ../..
+      dockerfile: deploy/authorization/Dockerfile
+    restart: unless-stopped
+    volumes:
+      - authorization_state:/state
+      - device_exports:/exports
+    networks: [backend]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      AUTH_DOMAIN: ${AUTH_DOMAIN:?Set AUTH_DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [backend, public]
+    depends_on: [authorization]
+volumes:
+  authorization_state:
+  device_exports:
+  caddy_data:
+  caddy_config:
+networks:
+  backend:
+    internal: true
+  public:

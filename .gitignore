@@ -2,6 +2,9 @@
 .env
 .env.*
 .local-verifier/
+.authorization-server/
+.private/
+!.env.example
 config.local.json
 .gates.jsonl
 __pycache__/

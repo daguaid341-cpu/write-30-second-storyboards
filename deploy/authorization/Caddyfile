@@ -1,0 +1,12 @@
+{$AUTH_DOMAIN} {
+    @authorize {
+        method POST
+        path /v1/skills/authorize
+    }
+    handle @authorize {
+        reverse_proxy authorization:8765
+    }
+    handle {
+        respond "Not found" 404
+    }
+}

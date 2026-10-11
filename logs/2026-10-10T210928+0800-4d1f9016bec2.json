@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-10T210928+0800-4d1f9016bec2",
+  "recorded_at": "2026-10-10T21:09:28+08:00",
+  "timezone": "Asia/Shanghai",
+  "skill": "rui-skills",
+  "task_summary": "将单机验证升级为统一授权服务和独立设备凭证，保持失败关闭并补充远程部署配置",
+  "rules_version": "runtime-rules:2.5",
+  "status": "completed",
+  "events": [
+    {
+      "at": "2026-10-10T21:09:28+08:00",
+      "stage": "start",
+      "summary": "将单机验证升级为统一授权服务和独立设备凭证，保持失败关闭并补充远程部署配置"
+    },
+    {
+      "at": "2026-10-11T10:25:06+08:00",
+      "stage": "finish",
+      "summary": "Central HTTPS authorization code, per-device management and deployment package completed and validated. Public deployment awaits real domain and server access."
+    }
+  ],
+  "lessons": [
+    "Only Rui-Skills video generation requires authorization; character asset design remains separate.",
+    "Central public HTTPS authorization uses independent device credentials, revocation and approved version digests; failures deny use without local fallback.",
+    "Editable client code and instructions are not tamper-proof DRM; credentials identify possession, not hardware."
+  ],
+  "validation": {
+    "text": "passed",
+    "visual": "not_run",
+    "details": "1636 JavaScript checks and 1 Python runtime test passed; skill validation, Markdown links, git diff whitespace and Docker Compose configuration passed.",
+    "limitations": "Docker container build/runtime not tested because the local engine was unavailable; actual public deployment and end-to-end public HTTPS verification require the real domain and server access."
+  },
+  "persistence": "workspace",
+  "github_sync": "pending_push_of_this_record",
+  "result_rules_version": "runtime-rules:2.6",
+  "public_deployment": "pending_domain_and_server_access",
+  "legacy_local_service": "stopped_and_private_configs_backed_up; new client unconfigured and verified fail_closed",
+  "installed_skill_update": "not_verified",
+  "finished_at": "2026-10-11T10:25:06+08:00"
+}

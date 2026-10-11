@@ -1,0 +1,8 @@
+**
+!rui-skills/
+!rui-skills/scripts/
+!rui-skills/scripts/authorization-server.mjs
+!rui-skills/scripts/gate-common.mjs
+!deploy/
+!deploy/authorization/
+!deploy/authorization/Dockerfile

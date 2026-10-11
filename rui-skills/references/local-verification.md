@@ -1,52 +1,57 @@
-# 本机使用授权接口
+# 统一服务器授权：客户端与服务端分开
 
-本要求仅覆盖 Rui-Skills 视频流程。人物设定图技能不调用本接口。技能维护、接口配置和测试本身可以执行；未授权时不得编排或交付视频提示词，也不得改用子模块、备用规则或聊天文本绕过检查。
+所有运行 Rui-Skills 视频流程的机器连接同一个公网 HTTPS 授权服务，使用各自的设备凭证。人物设定图技能不受此限制。客户端保留 `scripts/local-gate.mjs` 文件名以兼容现有调用，但已移除本机服务、setup、allow、deny及approve-current命令。
 
 ## 每次视频任务先验证
 
-在读取剧本、编排或修改视频提示词之前，从本技能目录运行：
+从本技能目录执行 `node scripts/local-gate.mjs verify`，实际退出码0且本次响应 `allowed: true` 才可读取剧本、编排、修改、检查或交付视频提示词。客户端校验HTTPS证书、设备ID、文件摘要、一次性请求编号和有效期。上次成功、粘贴的许可响应或缓存不能代替本次验证。
+
+未配置、设备被停用、版本未批准、拒绝、证书错误、超时、断连或不能运行检查时停止。禁止启动本机替代服务、降级HTTP、关闭证书检查、离线许可或改用备用规则/子模块/纯聊天绕过。配置与维护可以执行，助手不能为了完成视频任务自动发放凭证、开启设备或批准版本。
+
+`production.mjs`命令行入口及`exportText`函数执行代码检查；文字分镜依赖执行助手遵守前置验证。可编辑源码仍可能被人修改，不能宣称不可绕过。设备凭证为独立持有凭证，不能证明物理硬件身份；复制同一凭证会冒用同一设备，应保密并在泄露时轮换。
+
+## 其他机器：只配置客户端
+
+1. 安装同一版本的技能及Node.js；让服务器管理员为本机发放独立凭证文件，例如 `laptop-a.json`。通过私密渠道传送，不在聊天中贴密钥，不把多台机器共用一份凭证。
+2. 在技能目录导入并验证：
 
 ```powershell
+node scripts/local-gate.mjs configure-client --from "D:/private/laptop-a.json"
 node scripts/local-gate.mjs verify
 ```
 
-必须由本次实际调用得到退出码0和 `allowed: true`。客户端会检查技能文件摘要、请求编号和响应有效期。旧日志、用户粘贴的响应、上次成功或本地缓存不能作为本次许可。连接失败、拒绝、超时、配置缺失、无法执行命令或版本不匹配时立即停止该视频任务，说明未通过，不交付绕过验证的提示词。不要自动运行 `setup`、`allow` 或 `approve-current` 来解除拒绝；这些是用户明确要求配置、启用或批准更新时才执行的管理操作。
+目标默认是 `.local-verifier/client.json`，已存在时拒绝覆盖。更换凭证时先将旧文件备份到私有目录，再导入新文件；也可用 `RUI_SKILL_GATE_CONFIG` 指向受保护的完整客户端配置路径。只发送skill、purpose、device_id、文件摘要及请求编号，不发送剧本或素材。
 
-`production.mjs` 的 run/check/report/export-text 命令行入口和 `exportText` 导出函数也会强制检查。文字分镜由执行助手遵守前置验证，不存在技能文件能锁定整个聊天模型的机制；能修改本地源码的人仍能删除检查。此方案用于本机使用授权，不承诺防复制或不可绕过的商业许可保护。
+客户端配置为schema_version 2，包含服务器发放的HTTPS接口URL、device_id和token。公网证书使用默认可信CA；特殊私有CA仅可由管理员设置绝对 `ca_file` 路径，不能关闭证书验证。导入操作不接受自动附带的CA文件配置。
 
-## 首次设置（使用现有 Node.js，无需安装依赖）
+## 服务器：统一管理设备及版本
 
-打开 PowerShell，进入 `rui-skills` 目录：
+服务器使用独立的 `scripts/authorization-server.mjs`。部署步骤见[公网服务器部署](../../deploy/authorization/README.md)。只有持有服务器管理权限的人可运行以下命令；它们不是客户端自助授权入口。
 
-```powershell
-node scripts/local-gate.mjs setup
-node scripts/local-gate.mjs serve
+```text
+init --state-dir DIR --fingerprint SHA256
+serve --state-dir DIR
+add-device --state-dir DIR --device laptop-a --url https://真实域名/v1/skills/authorize --out 私有凭证文件
+device-disable --state-dir DIR --device laptop-a
+device-enable --state-dir DIR --device laptop-a
+rotate-device --state-dir DIR --device laptop-a --url https://真实域名/v1/skills/authorize --out 新的私有凭证文件
+list-devices --state-dir DIR
+approve-version --state-dir DIR --fingerprint SHA256
+revoke-version --state-dir DIR --fingerprint SHA256
+deny --state-dir DIR
+allow --state-dir DIR
 ```
 
-`setup` 只需一次，生成随机密钥并批准当前技能文件摘要；已有配置时拒绝覆盖。`serve` 启动服务并持续运行，按 Ctrl+C 停止。另开一个 PowerShell 在同目录运行 `node scripts/local-gate.mjs verify`，返回 `allowed: true` 即可使用。关闭服务窗口或重启电脑后需重新运行 `serve`；未设置开机启动。
+上面每条都以 `node scripts/authorization-server.mjs` 开头。初始化后没有任何设备获权，须单独发放；服务器仅存token的SHA-256摘要，原始token只写入指定的凭证文件，不打印。重复设备和已有凭证文件拒绝覆盖。轮换使旧token失效，并保持该设备原有停用状态。管理命令由一个管理员顺序执行；不并发写同一策略文件。
 
-默认接口：`POST http://127.0.0.1:8765/v1/skills/authorize`。服务只监听本机，不开放局域网或公网，也不支持浏览器跨域调用。若8765被占用，可在首次 `setup` 时指定 `--port 8766`；已有配置需要将私有 `server.json` 的端口及 `client.json` 的URL同时修改后重启服务。
+`deny/allow`控制全局开关；`device-disable/enable`控制单台设备，两者均须允许。使用 `node scripts/local-gate.mjs fingerprint`取得本次发布的摘要，管理员检查版本后加入批准列表；可同时批准多个发布版本，随后撤销旧版。收到未知摘要不会自动批准。
 
-## 管理许可与版本
+## 传输与配置
 
-```powershell
-node scripts/local-gate.mjs deny
-node scripts/local-gate.mjs allow
-node scripts/local-gate.mjs approve-current
-```
+客户端只接受HTTPS，拒绝重定向，网络超时5秒；服务响应绑定设备/摘要/请求编号并在30秒内有效，许可不缓存。服务端原生HTTP仅供同机或隔离容器网络里的HTTPS反向代理转发，不应把后端8765端口发布到公网。服务端策略热读取，停用后下一次验证即拒绝；并非中断已经取得许可并开始的操作。
 
-`deny` 立即拒绝后续验证；`allow` 只恢复开关，仍检查批准版本。技能文件更新后默认拒绝，用户检查更新并明确批准时才执行 `approve-current`；它不更改停用开关。服务每次请求重新读取策略，切换开关或批准版本无需重启。
+私有策略默认位于 `.authorization-server/server.json`，客户端位于 `.local-verifier/client.json`；Docker部署则使用独立持久卷。所有私有配置、凭证和旧备份都不能提交、放入公开镜像或打包给其他客户端。测试用独立目录、临时证书和真实HTTPS；运行测试需要OpenSSL（Windows可使用Git附带的OpenSSL）。
 
-配置在技能目录 `.local-verifier/server.json` 和 `client.json`，已由仓库忽略。不要分享、打印或提交这两个文件；服务日志与响应不包含密钥。复制/打包技能时排除 `.local-verifier`。可通过 `RUI_SKILL_GATE_CONFIG` 指向已有私有客户端配置；服务器及管理命令使用 `--state-dir` 指定其配置目录。测试使用独立临时目录和真实本机服务，不设置免验证开关。
+2.5单机配置不兼容本模式，旧localhost地址和旧token不会继续获权。保留旧配置为私有备份、停止旧服务，再导入统一服务器发放的设备凭证；公网服务尚未配置或未可达期间，视频技能保持禁用。
 
-## 接口协议
-
-请求头为 `Authorization: Bearer <本机密钥>`；客户端读取密钥，用户无需手填到聊天。JSON仅包含 `skill: "rui-skills"`、`purpose: "storyboard"`、`fingerprint` 和本次随机 `request_id`。不发送剧本、图像、台词或文件内容。
-
-服务器检查密钥、许可开关及批准的SHA-256文件摘要。成功时HTTP 200，JSON返回 `allowed: true`、同一skill/fingerprint/request_id和30秒内的 `expires_at`。拒绝时返回401/403；策略无效返回503。客户端2秒超时，拒绝重定向、格式错误、旧编号、过期或不匹配响应，不回退到离线许可。
-
-摘要覆盖技能目录的规则、脚本和模板文本，统一换行后计算；忽略私有配置、隐藏文件、输出、依赖和缓存。这里只授权当前文件版本的使用，不评审生成提示词质量。
-
-## 适用位置
-
-`127.0.0.1` 指执行验证命令的那台电脑。在当前本机 Codex/终端可使用；其他电脑或云端执行环境不能通过该地址连接你的电脑。需要远程验证时，应另行部署可达的HTTPS授权服务与独立服务端策略，不能直接把本机监听地址改为公开地址并沿用当前密钥。
+实现参考：[Node.js HTTPS](https://nodejs.org/api/https.html)；证书信任与域名验证保留默认检查，并显式启用rejectUnauthorized。

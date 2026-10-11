@@ -4,7 +4,7 @@
 
 界面名称：**Rui-Skills**。调用标识：`$rui-skills`。主技能目录：[rui-skills/](rui-skills/SKILL.md)。GitHub 仓库地址沿用原地址。
 
-Rui-Skills 视频任务现在必须先通过本机服务器验证；未配置、未批准、超时或断连时停止。首次配置与启动见[本机接口说明](rui-skills/references/local-verification.md)。人物设定图技能不受此限制。私有 `.local-verifier` 配置不得提交或随技能分发。
+Rui-Skills 视频任务必须通过所有机器共用的 **HTTPS统一授权服务**。每台设备独立凭证，可单独停用；未配置、未批准、证书异常、超时或断连均停止，没有本机或离线回退。见[客户端与服务端说明](rui-skills/references/local-verification.md)及[公网部署步骤](deploy/authorization/README.md)。人物设定图技能不受此限制；私有配置和设备凭证不得提交或随技能分发。
 
 ## 先区分视频与人物设定图
 
